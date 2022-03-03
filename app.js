@@ -15,6 +15,11 @@ app.set('view engine', 'ejs');
     //$result = select * from post; 
       res.render('page2');
     })
+          app.get('/page3', (req, res) => {
+    //$result = select * from post; 
+      res.render('page3');
+    })
+
 
   app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
