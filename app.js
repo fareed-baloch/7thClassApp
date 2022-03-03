@@ -7,11 +7,13 @@ const port = 3000
 app.use(express.static(__dirname + '/public'));
 app.set('view engine', 'ejs');
 //end configs
-
-
   app.get('/', (req, res) => {
     //$result = select * from post; 
-      res.render('home');
+      res.render('blank');
+    })
+      app.get('/page', (req, res) => {
+    //$result = select * from post; 
+      res.render('page2');
     })
 
   app.listen(port, () => {
