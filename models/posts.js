@@ -80,6 +80,7 @@ async function update_image(id, Posts) {
 async function remove(id) {
   const result = await db.query(
     `DELETE FROM posts WHERE id=${id}`
+
   );
 
   let message = 'Error in deleting Posts';
