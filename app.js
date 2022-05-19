@@ -1,22 +1,50 @@
 const express = require("express")
+require('dotenv').config()
+
+
 const app = express()
-const port = 3000
-const Posts = require('./models/posts');//Posts Model 
+function Islogged(req,res,next){
+    req.user ? next() : res.redirect('/login');
+}
+const port = process.env.SERVER_PORT
+const Posts = require('./models/posts');//Posts Model
+const Users = require('./models/users'); 
 const multer = require('multer');//For Uploading Files
 const path = require('path');//For Accessing Files On the Server 
 const cors = require('cors'); // using Cors for Api Calls 
 var nodemailer = require('nodemailer');
 const session = require('express-session');
 const flash = require('connect-flash');
+require('./config/auth');
+const passport = require('passport');
+
+const Report = require('fluentReports' ).Report;
+
+
+async function Isadmin(req,res,next){
+  let UserTypeResult = await Users.getType(req.user.id)
+    let UserType = UserTypeResult.data[0].type;
+  //is user admin
+    if(UserType == 1){
+      next();
+    }else{
+      res.redirect('/usertype')
+    }
+
+}
+
 
 //configs
 
 //express session middleware
 app.use(session({
-    secret:'myapp',
+    secret: process.env.SESSION_SECRET,
     saveUninitialized: true,
     resave: true
 }));
+//passport middleware
+  app.use(passport.initialize());
+  app.use(passport.session());
 
 //flash messages
 app.use(flash());
@@ -68,8 +96,8 @@ var transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-        user: 'underhacker1249@gmail.com',
-        pass: 'manager*#'
+        user: process.env.GMAIL_ID,
+        pass: process.env.GMAIL_PASSWORD
     },
     tls: {
         rejectUnauthorized: false
@@ -93,14 +121,24 @@ app.get('/', (req, res) => {
   res.render('blank');
 })
 
-app.get('/posts', async (req, res, next) => {
+app.get('/posts',Islogged, async (req, res, next) => {
   try {
     let row = await Posts.getMultiple()
-    res.render('Posts/index',{data:row.data});
+    let userdata = req.user;
+    console.log(userdata.picture);
+    res.render('Posts/index',{data:row.data,userdata:req.user});
   } catch (err) {
     console.error(`Error while getting Posts `, err.message);
     next(err);
   }
+})
+app.get('/usertype',Islogged , async(req,res,next)=>{
+
+  res.send('User is type User')
+})
+
+app.get('/admintype',Islogged ,Isadmin, async(req,res,next)=>{
+   res.send('User is type Admin')
 })
 
 app.get('/api/posts', async (req, res, next) => {
@@ -271,6 +309,59 @@ app.post('/post/update-image/:id',upload, async function (req, res, next) {
 });
 
 
+//here
+app.get('/redirect/auth',Islogged , async(req,res,next)=>{
+
+  let UserTypeResult = await Users.getType(req.user.id)
+    let UserType = UserTypeResult.data[0].type;
+    if(UserType == 1)
+    {
+      res.redirect('/admintype');
+    }
+      if(UserType == 2)
+    {
+      res.redirect('/usertype');
+    }
+
+})
+
+app.get('/report', async  function(req,res){
+        let rows = await Posts.getMultiple();
+
+     // var randomNumber = Math.floor(Math.random());
+      const rpt = new Report("file.pdf")      
+          .data( rows.data )									 // Add our Data
+          .pageHeader( ["Posts"] )    		 // Add a simple header          
+          .detail([['title', 100],['des', 200]])      // Put how we want to print out the data line.
+          .render(); 	
+        res.download("file.pdf")
+
+});
+
+
+
+
+
+app.get('/login', (req,res)=>{
+  res.render('login')
+});
+
+app.get('/auth/google',
+  passport.authenticate('google', { scope:
+      [ 'email', 'profile' ] }
+));
+
+
+app.get( '/auth/google/callback',
+    passport.authenticate( 'google', {
+        successRedirect: '/redirect/auth',
+        failureRedirect: '/login'
+}));
+
+app.get('/logout',(req,res)=>{
+  req.logout();
+  res.redirect('/login')
+})
 
 
 app.listen(port, () => {
